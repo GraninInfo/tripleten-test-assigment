@@ -3,6 +3,7 @@ import os
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+from anthropic.types.beta import BetaToolParam
 
 from .base import BaseAnthropicTool, CLIResult, ToolError, ToolResult
 
@@ -165,7 +166,7 @@ class CustomBashTool(BashTool20250124):
     To use it agent should have tools support.
     """
     
-    def to_params(self) -> Any:
+    def to_params(self) -> BetaToolParam:
         return {
             "name": "execute_bash_command",
             "description": "Execute the given command in the running bash session. If the 'restart' flag is set to True, the current bash session will be restarted and the command will be ignored",

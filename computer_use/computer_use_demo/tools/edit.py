@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, Field
+from anthropic.types.beta import BetaToolParam
 
 from .base import BaseAnthropicTool, CLIResult, ToolError, ToolResult
 from .run import maybe_truncate, run
@@ -622,7 +623,7 @@ class CustomEditTool(EditTool20250124):
     To use it agent should have tools support.
     """
     
-    def to_params(self) -> Any:
+    def to_params(self) -> BetaToolParam:
         return {
             "name": "edit_text_file",
             "description": (

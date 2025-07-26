@@ -9,7 +9,7 @@ from typing import Literal, TypedDict, cast, get_args
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
-from anthropic.types.beta import BetaToolComputerUse20241022Param, BetaToolUnionParam
+from anthropic.types.beta import BetaToolComputerUse20241022Param, BetaToolUnionParam, BetaToolParam
 
 from .base import BaseAnthropicTool, ToolError, ToolResult
 from .run import run
@@ -434,8 +434,8 @@ class ComputerUseCommand(BaseModel):
         default=None,
         description=(
             "The coordinates in which the action must be performed. "
-            f"The screen has a resolution {int(os.getenv("WIDTH") or 0)}x{int(os.getenv("HEIGHT") or 0)} "
-            f"so the first coordinate should be in the range from 1 to {int(os.getenv("WIDTH") or 0)}, and the second from 1 to {int(os.getenv("HEIGHT") or 0)}.\n"
+            f"The screen has a resolution {int(os.getenv('WIDTH') or 0)}x{int(os.getenv('HEIGHT') or 0)} "
+            f"so the first coordinate should be in the range from 1 to {int(os.getenv('WIDTH') or 0)}, and the second from 1 to {int(os.getenv('HEIGHT') or 0)}.\n"
             "This field must be provided for the next actions: 'mouse_move', 'left_click', 'left_click_drag', 'right_click', 'middle_click', 'double_click'."
         ),
     )
@@ -447,7 +447,7 @@ class CustomComputerTool(BaseComputerTool, BaseAnthropicTool):
     To use it agent should have tools and vision support.
     """
     
-    def to_params(self) -> BetaToolComputerUse20241022Param:
+    def to_params(self) -> BetaToolParam:
         return {
             "name": "computer_interaction_tool",
             "description": "Provides screenshot capabilities and mouse/keyboard control for autonomous desktop interaction",
