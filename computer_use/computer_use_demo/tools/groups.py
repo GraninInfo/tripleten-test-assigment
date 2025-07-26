@@ -2,15 +2,15 @@ from dataclasses import dataclass
 from typing import Literal
 
 from .base import BaseAnthropicTool
-from .bash import BashTool20241022, BashTool20250124
-from .computer import ComputerTool20241022, ComputerTool20250124
-from .edit import EditTool20241022, EditTool20250124, EditTool20250429
+from .bash import BashTool20241022, BashTool20250124, CustomBashTool
+from .computer import ComputerTool20241022, ComputerTool20250124, CustomComputerTool
+from .edit import EditTool20241022, EditTool20250124, EditTool20250429, CustomEditTool
 
 ToolVersion = Literal[
-    "computer_use_20250124", "computer_use_20241022", "computer_use_20250429"
+    "computer_use_20250124", "computer_use_20241022", "computer_use_20250429", "custom_computer_use"
 ]
 BetaFlag = Literal[
-    "computer-use-2024-10-22", "computer-use-2025-01-24", "computer-use-2025-04-29"
+    "computer-use-2024-10-22", "computer-use-2025-01-24", "computer-use-2025-04-29", "custom_computer_use"
 ]
 
 
@@ -36,6 +36,11 @@ TOOL_GROUPS: list[ToolGroup] = [
         version="computer_use_20250429",
         tools=[ComputerTool20250124, EditTool20250429, BashTool20250124],
         beta_flag="computer-use-2025-01-24",
+    ),
+    ToolGroup(
+        version="custom_computer_use",
+        tools=[CustomComputerTool, CustomEditTool, CustomBashTool],
+        beta_flag="custom_computer_use",
     ),
 ]
 

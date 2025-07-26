@@ -35,6 +35,7 @@ PROVIDER_TO_DEFAULT_MODEL_NAME: dict[APIProvider, str] = {
     APIProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     APIProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     APIProvider.VERTEX: "claude-3-5-sonnet-v2@20241022",
+    APIProvider.NEBIUS: "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
 }
 
 
@@ -64,6 +65,13 @@ CLAUDE_4 = ModelConfig(
     max_output_tokens=128_000,
     default_output_tokens=1024 * 16,
     has_thinking=True,
+)
+
+NEBIUS = ModelConfig(
+    tool_version="custom_computer_use",
+    max_output_tokens=128_000,
+    default_output_tokens=1024 * 16,
+    has_thinking=False,
 )
 
 MODEL_TO_MODEL_CONF: dict[str, ModelConfig] = {
@@ -98,6 +106,12 @@ INTERRUPT_TEXT = "(user stopped or interrupted and wrote the following)"
 INTERRUPT_TOOL_ERROR = "human stopped or interrupted tool execution"
 
 
+def _get_available_tool_versions(provider: APIProvider) -> list[ToolVersion]:
+    if provider in [APIProvider.NEBIUS]:
+        return ["custom_computer_use"]
+    else:
+        return get_args(ToolVersion)
+
 class Sender(StrEnum):
     USER = "user"
     BOT = "assistant"
@@ -110,11 +124,11 @@ def setup_state():
     if "api_key" not in st.session_state:
         # Try to load API key from file first, then environment
         st.session_state.api_key = load_from_storage("api_key") or os.getenv(
-            "ANTHROPIC_API_KEY", ""
+            "NEBIUS_API_KEY", ""
         )
     if "provider" not in st.session_state:
         st.session_state.provider = (
-            os.getenv("API_PROVIDER", "anthropic") or APIProvider.ANTHROPIC
+            os.getenv("API_PROVIDER", "nebius") or APIProvider.NEBIUS
         )
     if "provider_radio" not in st.session_state:
         st.session_state.provider_radio = st.session_state.provider
@@ -148,7 +162,7 @@ def _reset_model():
 def _reset_model_conf():
     model_conf = (
         MODEL_TO_MODEL_CONF.get(
-            st.session_state.model, SONNET_3_5_NEW
+            st.session_state.model, NEBIUS
         )  # Default fallback
     )
 
@@ -157,7 +171,10 @@ def _reset_model_conf():
         st.session_state.tool_version = st.session_state.tool_versions
     else:
         st.session_state.tool_version = model_conf.tool_version
-
+    
+    if st.session_state.tool_version not in _get_available_tool_versions(st.session_state.provider):
+        st.session_state.tool_version = _get_available_tool_versions(st.session_state.provider)[0]
+    
     st.session_state.has_thinking = model_conf.has_thinking
     st.session_state.output_tokens = model_conf.default_output_tokens
     st.session_state.max_output_tokens = model_conf.max_output_tokens
@@ -179,9 +196,9 @@ async def main():
 
         def _reset_api_provider():
             if st.session_state.provider_radio != st.session_state.provider:
-                _reset_model()
                 st.session_state.provider = st.session_state.provider_radio
                 st.session_state.auth_validated = False
+                _reset_model()
 
         provider_options = [option.value for option in APIProvider]
         st.radio(
@@ -197,6 +214,13 @@ async def main():
         if st.session_state.provider == APIProvider.ANTHROPIC:
             st.text_input(
                 "Anthropic API Key",
+                type="password",
+                key="api_key",
+                on_change=lambda: save_to_storage("api_key", st.session_state.api_key),
+            )
+        elif st.session_state.provider == APIProvider.NEBIUS:
+            st.text_input(
+                "Nebius API Key",
                 type="password",
                 key="api_key",
                 on_change=lambda: save_to_storage("api_key", st.session_state.api_key),
@@ -217,10 +241,11 @@ async def main():
             ),
         )
         st.checkbox("Hide screenshots", key="hide_images")
-        st.checkbox(
-            "Enable token-efficient tools beta", key="token_efficient_tools_beta"
-        )
-        versions = get_args(ToolVersion)
+        if st.session_state.provider != APIProvider.NEBIUS:
+            st.checkbox(
+                "Enable token-efficient tools beta", key="token_efficient_tools_beta"
+            )
+        versions = _get_available_tool_versions(st.session_state.provider)
         st.radio(
             "Tool Versions",
             key="tool_versions",

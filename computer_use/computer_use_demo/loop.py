@@ -35,6 +35,8 @@ from .tools import (
     ToolResult,
     ToolVersion,
 )
+from .custom_providers import NebiusProvider
+
 
 PROMPT_CACHING_BETA_FLAG = "prompt-caching-2024-07-31"
 
@@ -43,6 +45,7 @@ class APIProvider(StrEnum):
     ANTHROPIC = "anthropic"
     BEDROCK = "bedrock"
     VERTEX = "vertex"
+    NEBIUS = "nebius"
 
 
 # This system prompt is optimized for the Docker environment in this repository and
@@ -108,6 +111,8 @@ async def sampling_loop(
             client = AnthropicVertex()
         elif provider == APIProvider.BEDROCK:
             client = AnthropicBedrock()
+        elif provider == APIProvider.NEBIUS:
+            client = NebiusProvider(api_key)
 
         if enable_prompt_caching:
             betas.append(PROMPT_CACHING_BETA_FLAG)
@@ -135,28 +140,38 @@ async def sampling_loop(
         # we use raw_response to provide debug information to streamlit. Your
         # implementation may be able call the SDK directly with:
         # `response = client.messages.create(...)` instead.
-        try:
-            raw_response = client.beta.messages.with_raw_response.create(
-                max_tokens=max_tokens,
-                messages=messages,
-                model=model,
-                system=[system],
-                tools=tool_collection.to_params(),
-                betas=betas,
-                extra_body=extra_body,
+        if provider not in [APIProvider.NEBIUS]:
+            try:
+                raw_response = client.beta.messages.with_raw_response.create(
+                    max_tokens=max_tokens,
+                    messages=messages,
+                    model=model,
+                    system=[system],
+                    tools=tool_collection.to_params(),
+                    betas=betas,
+                    extra_body=extra_body,
+                )
+            except (APIStatusError, APIResponseValidationError) as e:
+                api_response_callback(e.request, e.response, e)
+                return messages
+            except APIError as e:
+                api_response_callback(e.request, e.body, e)
+                return messages
+
+            api_response_callback(
+                raw_response.http_response.request, raw_response.http_response, None
             )
-        except (APIStatusError, APIResponseValidationError) as e:
-            api_response_callback(e.request, e.response, e)
-            return messages
-        except APIError as e:
-            api_response_callback(e.request, e.body, e)
-            return messages
 
-        api_response_callback(
-            raw_response.http_response.request, raw_response.http_response, None
-        )
-
-        response = raw_response.parse()
+            response = raw_response.parse()
+        else:
+            response = client.create(
+                model=model,
+                messages=messages,
+                system=system,
+                tools=tool_collection.to_params(),
+                extra_body=extra_body,
+                max_tokens=max_tokens,
+            )
 
         response_params = _response_to_params(response)
         messages.append(
