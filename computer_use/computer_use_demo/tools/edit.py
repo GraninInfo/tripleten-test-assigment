@@ -2,6 +2,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Literal, get_args
 
+from pydantic import BaseModel, Field
+
 from .base import BaseAnthropicTool, CLIResult, ToolError, ToolResult
 from .run import maybe_truncate, run
 
@@ -559,3 +561,73 @@ class EditTool20250429(BaseAnthropicTool):
 
 class EditTool20241022(EditTool20250124):
     api_type: Literal["text_editor_20250429"] = "text_editor_20250429"  # pyright: ignore[reportIncompatibleVariableOverride]
+
+
+class TextEditCommand(BaseModel):
+    command: Literal["view", "create", "str_replace", "insert", "undo_edit"] = Field(
+        ...,
+        description=(
+            "The 'view' command allows to examine the contents of a file or list the contents of a directory. It can read the entire file or a specific range of lines.\n"
+            "The 'str_replace' command allows to replace a specific string in a file with a new string. This is used for making precise edits.\n"
+            "The 'create' command allows to create a new file with specified content.\n"
+            "The 'insert' command allows to insert text at a specific location in a file.\n"
+            "The 'undo_edit' command allows to revert the last edit made to a file."
+        ),
+    )
+    path: str = Field(
+        ...,
+        description=(
+            "Path to the file to interact with. "
+            "This field must be provided for all commands."
+        ),
+    )
+    file_text: str | None = Field(
+        default=None,
+        description="Content to write to the new file. This field must be provided for the 'create' command.",
+    )
+    view_range: list[int] | None = Field(
+        default=None,
+        description=(
+            "An array of two integers specifying the start and end line numbers to view. "
+            "Line numbers are 1-indexed, and -1 for the end line means read to the end of the file. "
+            "This parameter only applies when viewing files, not directories. "
+            "This field can be provided for the 'view' command."
+        ),
+    )
+    old_str: str | None = Field(
+        default=None,
+        description=(
+            "The text to replace (must match exactly, including whitespace and indentation). "
+            "This field must be provided for the 'str_replace' command."
+        ),
+    )
+    new_str: str | None = Field(
+        default=None,
+        description=(
+            "The new text to insert in place of the old text. "
+            "This field must be provided for the 'str_replace' and 'insert' commands."
+        ),
+    )
+    insert_line: int | None = Field(
+        default=None,
+        description=(
+            "The line number after which to insert the text (0 for beginning of file). "
+            "This field must be provided for the 'insert' command."
+        ),
+    )
+
+class CustomEditTool(EditTool20250124):
+    """
+    An filesystem editor tool that allows the agent to view, create, and edit files.
+    To use it agent should have tools support.
+    """
+    
+    def to_params(self) -> Any:
+        return {
+            "name": "edit_text_file",
+            "description": (
+                "Text editor tool to view and modify text files, helping you debug, fix, and improve user code or other text documents. "
+                "This allows you to directly interact with user files, providing hands-on assistance rather than just suggesting changes."
+            ),
+            "input_schema": TextEditCommand.model_json_schema(),
+        }

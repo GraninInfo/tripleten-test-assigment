@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, TypedDict, cast, get_args
 from uuid import uuid4
 
+from pydantic import BaseModel, Field
 from anthropic.types.beta import BetaToolComputerUse20241022Param, BetaToolUnionParam
 
 from .base import BaseAnthropicTool, ToolError, ToolResult
@@ -400,3 +401,55 @@ class ComputerTool20250124(BaseComputerTool, BaseAnthropicTool):
         return await super().__call__(
             action=action, text=text, coordinate=coordinate, key=key, **kwargs
         )
+
+
+class ComputerUseCommand(BaseModel):
+    action: Literal[
+        "key", "type", "mouse_move", "left_click", "left_click_drag", "right_click",
+        "middle_click", "double_click", "screenshot", "cursor_position",
+    ] = Field(
+        ...,
+        description=(
+            "Available actions:\n"
+            "\t'key' - Press key or key combination (e.g., 'ctrl+s'). The key combination must be specified in the 'text' field.\n"
+            "\t'type' - Type text string.\n"
+            "\t'mouse_move' - Move cursor to the specified coordinates.\n"
+            "\t'left_click' - Left click on the specified coordinates.\n"
+            "\t'left_click_drag' - Click and drag between current coordinates and specified coordinates.\n"
+            "\t'right_click' - Right click on the specified coordinates.\n"
+            "\t'middle_click' - Middle click on the specified coordinates.\n"
+            "\t'double_click' - Double left click on the specified coordinates.\n"
+            "\t'screenshot' - Capture the current display.\n"
+            "\t'cursor_position' - Get current cursor position."
+        ),
+    )
+    text: str | None = Field(
+        default=None,
+        description=(
+            "Text to type for the 'type' command or key combination for the 'key' command. "
+            "This field must be provided for the next actions: 'key', 'type'."
+        ),
+    )
+    coordinate: tuple[int, int] | None = Field(
+        default=None,
+        description=(
+            "The coordinates in which the action must be performed. "
+            f"The screen has a resolution {int(os.getenv("WIDTH") or 0)}x{int(os.getenv("HEIGHT") or 0)} "
+            f"so the first coordinate should be in the range from 1 to {int(os.getenv("WIDTH") or 0)}, and the second from 1 to {int(os.getenv("HEIGHT") or 0)}.\n"
+            "This field must be provided for the next actions: 'mouse_move', 'left_click', 'left_click_drag', 'right_click', 'middle_click', 'double_click'."
+        ),
+    )
+
+
+class CustomComputerTool(BaseComputerTool, BaseAnthropicTool):
+    """
+    A tool that allows the agent to interact with the screen, keyboard, and mouse of the current computer.
+    To use it agent should have tools and vision support.
+    """
+    
+    def to_params(self) -> BetaToolComputerUse20241022Param:
+        return {
+            "name": "computer_interaction_tool",
+            "description": "Provides screenshot capabilities and mouse/keyboard control for autonomous desktop interaction",
+            "input_schema": ComputerUseCommand.model_json_schema(),
+        }

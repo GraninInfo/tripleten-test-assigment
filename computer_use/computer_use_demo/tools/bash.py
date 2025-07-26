@@ -2,6 +2,8 @@ import asyncio
 import os
 from typing import Any, Literal
 
+from pydantic import BaseModel, Field
+
 from .base import BaseAnthropicTool, CLIResult, ToolError, ToolResult
 
 
@@ -145,3 +147,27 @@ class BashTool20250124(BaseAnthropicTool):
 
 class BashTool20241022(BashTool20250124):
     api_type: Literal["bash_20250124"] = "bash_20250124"  # pyright: ignore[reportIncompatibleVariableOverride]
+
+
+class BashCommand(BaseModel):
+    command: str | None = Field(
+        ...,
+        description="Command to execute in the current bash session",
+    )
+    restart: bool = Field(
+        default=False,
+        description="An indication that the bash session should be restarted. In this case, the command passed will not be executed",
+    )
+
+class CustomBashTool(BashTool20250124):
+    """
+    A tool that allows the agent to run bash commands.
+    To use it agent should have tools support.
+    """
+    
+    def to_params(self) -> Any:
+        return {
+            "name": "execute_bash_command",
+            "description": "Execute the given command in the running bash session. If the 'restart' flag is set to True, the current bash session will be restarted and the command will be ignored",
+            "input_schema": BashCommand.model_json_schema(),
+        }
