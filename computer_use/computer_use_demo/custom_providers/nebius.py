@@ -63,6 +63,7 @@ class NebiusProvider:
                                 tool_call_id=block["tool_use_id"],
                             ))
                         elif isinstance(block["content"], list):
+                            image_in_tool_result = False
                             openai_content_block: list[ChatCompletionContentPartParam] = []
                             for subblock in block["content"]:
                                 if subblock["type"] == "text":
@@ -71,15 +72,24 @@ class NebiusProvider:
                                         type="text",
                                     ))
                                 elif subblock["type"] == "image":
+                                    image_in_tool_result = True
                                     openai_content_block.append(ChatCompletionContentPartImageParam(
-                                        image_url=subblock["source"]["data"],
                                         type="image_url",
+                                        image_url={
+                                            "url": f"data:{subblock['source']['media_type']};{subblock['source']['type']},{subblock['source']['data']}",
+                                        }
                                     ))
-                            formatted_messages.append(ChatCompletionToolMessageParam(
-                                content=openai_content_block,
-                                role="tool",
-                                tool_call_id=block["tool_use_id"],
-                            ))
+                            if image_in_tool_result:
+                                formatted_messages.append(ChatCompletionUserMessageParam(
+                                    content=openai_content_block,
+                                    role="user",
+                                ))
+                            else:
+                                formatted_messages.append(ChatCompletionToolMessageParam(
+                                    content=openai_content_block,
+                                    role="tool",
+                                    tool_call_id=block["tool_use_id"],
+                                ))
                     
             elif message["role"] == "assistant" and isinstance(message["content"], str):
                 formatted_messages.append(ChatCompletionAssistantMessageParam(
@@ -172,6 +182,5 @@ class NebiusProvider:
             messages=self._format_messages(messages, system),
             max_tokens=max_tokens,
             tools=self._format_tools(tools),
-            tool_choice="auto",
         )
         return self._format_response(response)

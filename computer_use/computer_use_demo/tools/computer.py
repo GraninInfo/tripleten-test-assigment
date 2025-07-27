@@ -186,10 +186,10 @@ class BaseComputerTool:
             "screenshot",
             "cursor_position",
         ):
-            if text is not None:
-                raise ToolError(f"text is not accepted for {action}")
-            if coordinate is not None:
-                raise ToolError(f"coordinate is not accepted for {action}")
+            # if text is not None:
+            #     raise ToolError(f"text is not accepted for {action}")
+            # if coordinate is not None:
+            #     raise ToolError(f"coordinate is not accepted for {action}")
 
             if action == "screenshot":
                 return await self.screenshot()
@@ -419,7 +419,7 @@ class ComputerUseCommand(BaseModel):
             "\t'right_click' - Right click on the specified coordinates.\n"
             "\t'middle_click' - Middle click on the specified coordinates.\n"
             "\t'double_click' - Double left click on the specified coordinates.\n"
-            "\t'screenshot' - Capture the current display.\n"
+            "\t'screenshot' - Take a screenshot of the entire display.\n"
             "\t'cursor_position' - Get current cursor position."
         ),
     )

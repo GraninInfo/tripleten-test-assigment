@@ -35,7 +35,7 @@ PROVIDER_TO_DEFAULT_MODEL_NAME: dict[APIProvider, str] = {
     APIProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     APIProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     APIProvider.VERTEX: "claude-3-5-sonnet-v2@20241022",
-    APIProvider.NEBIUS: "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+    APIProvider.NEBIUS: "Qwen/Qwen2-VL-72B-Instruct",
 }
 
 
