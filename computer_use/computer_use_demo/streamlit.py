@@ -126,15 +126,17 @@ class Sender(StrEnum):
 def setup_state():
     if "messages" not in st.session_state:
         st.session_state.messages = []
-    if "api_key" not in st.session_state:
-        # Try to load API key from file first, then environment
-        st.session_state.api_key = load_from_storage("api_key") or os.getenv(
-            "NEBIUS_API_KEY", ""
-        )
     if "provider" not in st.session_state:
         st.session_state.provider = (
             os.getenv("API_PROVIDER", "complex nebius") or APIProvider.COMPLEX_NEBIUS
         )
+    if "api_key" not in st.session_state:
+        # Try to load API key from file first, then environment
+        st.session_state.api_key = load_from_storage("api_key")
+        if st.session_state.provider in [APIProvider.NEBIUS, APIProvider.COMPLEX_NEBIUS]:
+            st.session_state.api_key = st.session_state.api_key or os.getenv("NEBIUS_API_KEY", "")
+        else:
+            st.session_state.api_key = st.session_state.api_key or os.getenv("ANTHROPIC_API_KEY", "")
     if "provider_radio" not in st.session_state:
         st.session_state.provider_radio = st.session_state.provider
     if "model" not in st.session_state:
