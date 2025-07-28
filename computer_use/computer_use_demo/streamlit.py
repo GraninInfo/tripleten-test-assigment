@@ -27,15 +27,20 @@ from streamlit.delta_generator import DeltaGenerator
 
 from computer_use_demo.loop import (
     APIProvider,
+    ComplexModel,
     sampling_loop,
 )
 from computer_use_demo.tools import ToolResult, ToolVersion
 
-PROVIDER_TO_DEFAULT_MODEL_NAME: dict[APIProvider, str] = {
+PROVIDER_TO_DEFAULT_MODEL_NAME: dict[APIProvider, str | ComplexModel] = {
     APIProvider.ANTHROPIC: "claude-sonnet-4-20250514",
     APIProvider.BEDROCK: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     APIProvider.VERTEX: "claude-3-5-sonnet-v2@20241022",
-    APIProvider.NEBIUS: "Qwen/Qwen2-VL-72B-Instruct",
+    APIProvider.NEBIUS: "Qwen/Qwen2.5-VL-72B-Instruct",
+    APIProvider.COMPLEX_NEBIUS: ComplexModel(
+        vision_model="Qwen/Qwen2.5-VL-72B-Instruct",
+        tool_calling_model="Qwen/Qwen3-32B",
+    ),
 }
 
 
@@ -67,7 +72,7 @@ CLAUDE_4 = ModelConfig(
     has_thinking=True,
 )
 
-NEBIUS = ModelConfig(
+NEBIUS_CONF = ModelConfig(
     tool_version="custom_computer_use",
     max_output_tokens=128_000,
     default_output_tokens=1024 * 16,
@@ -101,13 +106,13 @@ STREAMLIT_STYLE = """
 </style>
 """
 
-WARNING_TEXT = "⚠️ Security Alert: Never provide access to sensitive accounts or data, as malicious web content can hijack Claude's behavior"
+WARNING_TEXT = "⚠️ Security Alert: Never provide access to sensitive accounts or data, as malicious web content can hijack model's behavior"
 INTERRUPT_TEXT = "(user stopped or interrupted and wrote the following)"
 INTERRUPT_TOOL_ERROR = "human stopped or interrupted tool execution"
 
 
 def _get_available_tool_versions(provider: APIProvider) -> list[ToolVersion]:
-    if provider in [APIProvider.NEBIUS]:
+    if provider in [APIProvider.NEBIUS, APIProvider.COMPLEX_NEBIUS]:
         return ["custom_computer_use"]
     else:
         return get_args(ToolVersion)
@@ -128,7 +133,7 @@ def setup_state():
         )
     if "provider" not in st.session_state:
         st.session_state.provider = (
-            os.getenv("API_PROVIDER", "nebius") or APIProvider.NEBIUS
+            os.getenv("API_PROVIDER", "complex nebius") or APIProvider.COMPLEX_NEBIUS
         )
     if "provider_radio" not in st.session_state:
         st.session_state.provider_radio = st.session_state.provider
@@ -156,13 +161,16 @@ def _reset_model():
     st.session_state.model = PROVIDER_TO_DEFAULT_MODEL_NAME[
         cast(APIProvider, st.session_state.provider)
     ]
+    if isinstance(st.session_state.model, ComplexModel):
+        st.session_state.vision_model = st.session_state.model.vision_model
+        st.session_state.tool_calling_model = st.session_state.model.tool_calling_model
     _reset_model_conf()
 
 
 def _reset_model_conf():
     model_conf = (
         MODEL_TO_MODEL_CONF.get(
-            st.session_state.model, NEBIUS
+            st.session_state.model, NEBIUS_CONF
         )  # Default fallback
     )
 
@@ -175,11 +183,18 @@ def _reset_model_conf():
     if st.session_state.tool_version not in _get_available_tool_versions(st.session_state.provider):
         st.session_state.tool_version = _get_available_tool_versions(st.session_state.provider)[0]
     
+    st.session_state.thinking = model_conf.has_thinking
     st.session_state.has_thinking = model_conf.has_thinking
     st.session_state.output_tokens = model_conf.default_output_tokens
     st.session_state.max_output_tokens = model_conf.max_output_tokens
     st.session_state.thinking_budget = int(model_conf.default_output_tokens / 2)
 
+def _reset_complex_nebius_model():
+    st.session_state.model = ComplexModel(
+        vision_model=st.session_state.vision_model,
+        tool_calling_model=st.session_state.tool_calling_model,
+    ),
+    _reset_model_conf()
 
 async def main():
     """Render loop for streamlit"""
@@ -208,9 +223,13 @@ async def main():
             format_func=lambda x: x.title(),
             on_change=_reset_api_provider,
         )
-
-        st.text_input("Model", key="model", on_change=_reset_model_conf)
-
+        
+        if st.session_state.provider == APIProvider.COMPLEX_NEBIUS:
+            st.text_input("Vision model", key="vision_model", on_change=_reset_complex_nebius_model)
+            st.text_input("Tool calling model", key="tool_calling_model", on_change=_reset_complex_nebius_model)
+        else:
+            st.text_input("Model", key="model", on_change=_reset_model_conf)
+        
         if st.session_state.provider == APIProvider.ANTHROPIC:
             st.text_input(
                 "Anthropic API Key",
@@ -218,7 +237,7 @@ async def main():
                 key="api_key",
                 on_change=lambda: save_to_storage("api_key", st.session_state.api_key),
             )
-        elif st.session_state.provider == APIProvider.NEBIUS:
+        elif st.session_state.provider in [APIProvider.NEBIUS, APIProvider.COMPLEX_NEBIUS]:
             st.text_input(
                 "Nebius API Key",
                 type="password",
@@ -241,7 +260,7 @@ async def main():
             ),
         )
         st.checkbox("Hide screenshots", key="hide_images")
-        if st.session_state.provider != APIProvider.NEBIUS:
+        if st.session_state.provider not in [APIProvider.NEBIUS, APIProvider.COMPLEX_NEBIUS]:
             st.checkbox(
                 "Enable token-efficient tools beta", key="token_efficient_tools_beta"
             )
@@ -258,14 +277,15 @@ async def main():
 
         st.number_input("Max Output Tokens", key="output_tokens", step=1)
 
-        st.checkbox("Thinking Enabled", key="thinking", value=False)
-        st.number_input(
-            "Thinking Budget",
-            key="thinking_budget",
-            max_value=st.session_state.max_output_tokens,
-            step=1,
-            disabled=not st.session_state.thinking,
-        )
+        if st.session_state.provider not in [APIProvider.NEBIUS, APIProvider.COMPLEX_NEBIUS]:
+            st.checkbox("Thinking Enabled", key="thinking", value=False)
+            st.number_input(
+                "Thinking Budget",
+                key="thinking_budget",
+                max_value=st.session_state.max_output_tokens,
+                step=1,
+                disabled=not st.session_state.thinking,
+            )
 
         if st.button("Reset", type="primary"):
             with st.spinner("Resetting..."):

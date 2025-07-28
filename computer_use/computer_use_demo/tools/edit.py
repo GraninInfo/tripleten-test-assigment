@@ -163,6 +163,9 @@ class EditTool20250124(BaseAnthropicTool):
 
     def str_replace(self, path: Path, old_str: str, new_str: str | None):
         """Implement the str_replace command, which replaces old_str with new_str in the file content"""
+        if not old_str:
+            raise ToolError("Variable old_str cannot be an empty string.")
+        
         # Read the file content
         file_content = self.read_file(path).expandtabs()
         old_str = old_str.expandtabs()
@@ -435,6 +438,9 @@ class EditTool20250429(BaseAnthropicTool):
 
     def str_replace(self, path: Path, old_str: str, new_str: str | None):
         """Implement the str_replace command, which replaces old_str with new_str in the file content"""
+        if not old_str:
+            raise ToolError("Variable old_str cannot be an empty string.")
+        
         # Read the file content
         file_content = self.read_file(path).expandtabs()
         old_str = old_str.expandtabs()

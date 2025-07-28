@@ -7,6 +7,7 @@ from collections.abc import Callable
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, cast
+from dataclasses import dataclass
 
 import httpx
 from anthropic import (
@@ -46,6 +47,7 @@ class APIProvider(StrEnum):
     BEDROCK = "bedrock"
     VERTEX = "vertex"
     NEBIUS = "nebius"
+    COMPLEX_NEBIUS = "complex nebius"
 
 
 # This system prompt is optimized for the Docker environment in this repository and
@@ -70,9 +72,14 @@ SYSTEM_PROMPT = f"""<SYSTEM_CAPABILITY>
 </IMPORTANT>"""
 
 
+@dataclass(kw_only=True, frozen=True)
+class ComplexModel:
+    vision_model: str
+    tool_calling_model: str
+
 async def sampling_loop(
     *,
-    model: str,
+    model: str | ComplexModel,
     provider: APIProvider,
     system_prompt_suffix: str,
     messages: list[BetaMessageParam],
@@ -111,7 +118,7 @@ async def sampling_loop(
             client = AnthropicVertex()
         elif provider == APIProvider.BEDROCK:
             client = AnthropicBedrock()
-        elif provider == APIProvider.NEBIUS:
+        elif provider in [APIProvider.NEBIUS, APIProvider.COMPLEX_NEBIUS]:
             client = NebiusProvider(api_key)
 
         if enable_prompt_caching:
@@ -140,7 +147,7 @@ async def sampling_loop(
         # we use raw_response to provide debug information to streamlit. Your
         # implementation may be able call the SDK directly with:
         # `response = client.messages.create(...)` instead.
-        if provider not in [APIProvider.NEBIUS]:
+        if provider not in [APIProvider.NEBIUS, APIProvider.COMPLEX_NEBIUS]:
             try:
                 raw_response = client.beta.messages.with_raw_response.create(
                     max_tokens=max_tokens,
@@ -163,9 +170,19 @@ async def sampling_loop(
             )
 
             response = raw_response.parse()
-        else:
+        elif provider == APIProvider.NEBIUS:
             response = client.create(
                 model=model,
+                messages=messages,
+                system=system,
+                tools=tool_collection.to_params(),
+                extra_body=extra_body,
+                max_tokens=max_tokens,
+            )
+        elif provider == APIProvider.COMPLEX_NEBIUS:
+            response = client.complex_create(
+                vision_model=model.vision_model,
+                tool_calling_model=model.tool_calling_model,
                 messages=messages,
                 system=system,
                 tools=tool_collection.to_params(),
