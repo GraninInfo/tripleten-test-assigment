@@ -31,6 +31,8 @@ Once the container is running, open your browser to [http://localhost:8080](http
 
 The main goal was to add support for the Nebius AI to the existing application. The existing application already supports working with Anthropic models, so I chose to add support for querying Nebius AI in the same format as Anthropic, this is implemented in the [computer_use/computer_use_demo/custom_providers/nebius.py](https://github.com/GraninInfo/tripleten-test-assigment/blob/main/computer_use/computer_use_demo/custom_providers/nebius.py) file. With this approach, the number of changes that need to be made to the existing code is minimal, which reduces the number of potential bugs.
 
+Unfortunately, the source code used tools that were passed to the Anthropic API under a unique name without any additional description. In this format, these tools cannot be used with Nebius AI Studio, so I had to write custom tools based on their description in the Anthropic documentation.
+
 While testing the code, I discovered that all four vision models in Nebius AI Studio do not support tool calling. So I added a [pipeline](https://github.com/GraninInfo/tripleten-test-assigment/blob/36bafe52564efe3033c6e1023b716c7cba8ef516/computer_use/computer_use_demo/custom_providers/nebius.py#L193) with two model invocations: one for the vision model that returns a response with a textual description of the tools to use, and one for the model that supports tool calling so that it returns the tool calling information in a structured format.
 
 ### Suggestions for evaluation
