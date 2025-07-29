@@ -420,7 +420,8 @@ class ComputerUseCommand(BaseModel):
             "\t'middle_click' - Middle click on the specified coordinates.\n"
             "\t'double_click' - Double left click on the specified coordinates.\n"
             "\t'screenshot' - Take a screenshot of the entire display.\n"
-            "\t'cursor_position' - Get current cursor position."
+            "\t'cursor_position' - Get current cursor position.\n"
+            "After an action in which the cursor moved, always check using the provided screenshot that the cursor is in the place where you expected it to be."
         ),
     )
     text: str | None = Field(
@@ -441,7 +442,7 @@ class ComputerUseCommand(BaseModel):
     )
 
 
-class CustomComputerTool(BaseComputerTool, BaseAnthropicTool):
+class CustomComputerTool(ComputerTool20250124, BaseAnthropicTool):
     """
     A tool that allows the agent to interact with the screen, keyboard, and mouse of the current computer.
     To use it agent should have tools and vision support.

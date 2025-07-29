@@ -195,7 +195,7 @@ def _reset_complex_nebius_model():
     st.session_state.model = ComplexModel(
         vision_model=st.session_state.vision_model,
         tool_calling_model=st.session_state.tool_calling_model,
-    ),
+    )
     _reset_model_conf()
 
 async def main():

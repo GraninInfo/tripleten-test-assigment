@@ -39,13 +39,13 @@ class NebiusProvider:
         formatted_messages: list[ChatCompletionMessageParam] = []
         if system is not None:
             formatted_messages.append(ChatCompletionSystemMessageParam(
-                content=system["text"],
+                content=[ChatCompletionContentPartTextParam(text=system["text"], type="text")],
                 role="system",
             ))
         for message in messages:
             if message["role"] == "user" and isinstance(message["content"], str):
                 formatted_messages.append(ChatCompletionUserMessageParam(
-                    content=message["content"],
+                    content=[ChatCompletionContentPartTextParam(text=message["content"], type="text")],
                     role="user",
                 ))
             
@@ -53,13 +53,13 @@ class NebiusProvider:
                 for block in message["content"]:
                     if block["type"] == "text":
                         formatted_messages.append(ChatCompletionUserMessageParam(
-                            content=block["text"],
+                            content=[ChatCompletionContentPartTextParam(text=block["text"], type="text")],
                             role="user",
                         ))
                     elif block["type"] == "tool_result":
                         if isinstance(block["content"], str):
                             formatted_messages.append(ChatCompletionToolMessageParam(
-                                content=block["content"],
+                                content=[ChatCompletionContentPartTextParam(text=block["content"], type="text")],
                                 role="tool",
                                 tool_call_id=block["tool_use_id"],
                             ))
@@ -94,7 +94,8 @@ class NebiusProvider:
                     
             elif message["role"] == "assistant" and isinstance(message["content"], str):
                 formatted_messages.append(ChatCompletionAssistantMessageParam(
-                    content=message["content"],
+                    content=[ChatCompletionContentPartTextParam(text=message["content"], type="text")],
+                    tool_calls=[],
                     role="assistant",
                 ))
             
@@ -102,13 +103,15 @@ class NebiusProvider:
                 for block in message["content"]:
                     if block["type"] == "text":
                         formatted_messages.append(ChatCompletionAssistantMessageParam(
-                            content=block["text"],
+                            content=[ChatCompletionContentPartTextParam(text=block["text"], type="text")],
+                            tool_calls=[],
                             role="assistant",
                         ))
                     elif block["type"] == "thinking":
                         pass
                     elif block["type"] == "tool_use":
                         formatted_messages.append(ChatCompletionAssistantMessageParam(
+                            content=[],
                             tool_calls=[ChatCompletionMessageToolCallParam(
                                 id=block["id"],
                                 function=Function(
@@ -120,7 +123,26 @@ class NebiusProvider:
                             role="assistant",
                         ))
         
-        return formatted_messages
+        return NebiusProvider._merge_consecutive_messages_with_the_same_role(formatted_messages)
+    
+    @staticmethod
+    def _merge_consecutive_messages_with_the_same_role(messages: list[ChatCompletionMessageParam]) -> list[ChatCompletionMessageParam]:
+        if not messages:
+            return []
+        
+        merged_messages = [messages[0]]
+        for message in messages[1:]:
+            if message["role"] != merged_messages[-1]["role"]:
+                merged_messages.append(message)
+            else:
+                if merged_messages[-1]["role"] == "tool" and merged_messages[-1]["tool_call_id"] != message["tool_call_id"]:
+                    merged_messages.append(message)
+                elif merged_messages[-1]["role"] != "assistant":
+                    merged_messages[-1]["content"] += message["content"]
+                else:
+                    merged_messages[-1]["content"] += message["content"]
+                    merged_messages[-1]["tool_calls"] += message["tool_calls"]
+        return merged_messages
     
     @staticmethod
     def _format_tools(tools: list[BetaToolParam]) -> list[ChatCompletionToolParam]:
@@ -225,7 +247,7 @@ The parameters required for each tool are specified in the input_schema field.
 
         parse_tool_call_prompt = f"""
 You will be given a text response from the LLM model.
-This response may describe the tool calls in text format.
+This response may include the tool calls in text format.
 Your task is to call the tools if they are precisely specified in the text response along with the parameters required for them.
 
 Text response from the LLM model:
