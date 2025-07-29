@@ -50,3 +50,24 @@ Now we can see what proportion of the dataset fell into each of the three option
 Additionally, it is necessary to measure the total cost of the agent’s work. This is also an important metric.
 
 And we can measure another metric, the importance of which depends on the specific task - the average time it takes to respond to each user request.
+
+### Web project testing
+
+#### Project description
+
+The test web page includes a circle that can change color, two buttons "Change to Orange" and "Change to Purple" that should change the color of the circle when clicked, and two buttons "Hover for Red" and "Hover for Pink" that should change the color of the circle when hovered over.
+
+The following bugs were added to the web page:
+
+1. The "Change to Purple" button changes the color of the circle to white instead of purple.
+2. The "Hover for Red" button does not work at all.
+
+#### Final prompt crafting
+
+At first, I used a simple prompt, in which I asked to test a web page and write a summary with the results of the testing. And the model wrote the entire list of tests in the first response message along with the list of tools to be called (because of this, all the tools were called in a row) and the final summary, which should have appeared only in the last conversation message.
+
+After seeing this problem, in the next version of the prompt I described what the model should do based on the previous conversation, and it worked: the model started to consistently follow the correct algorithm:
+1. Take a screenshot
+2. Describe the functionality of the page and list the tests that need to be performed
+3. Perform each test separately
+4. Write a final summary

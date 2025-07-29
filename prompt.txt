@@ -1,0 +1,5 @@
+There is a web page open in the system now. Your task is to fully test the functionality of this web page from start to finish, without forgetting a single detail.
+To do this, first take a screenshot of the page.
+If you just received a screenshot of the page, describe the functionality of this page. Based on this functionality, describe a list of tests that need to be done in the form of a numbered list. For each test, describe what it should check, do not write how it will be checked and do not call any tools. After describing all the tests, take only the first test and use the necessary tools to perform it.
+If the step of performing tests is currently underway, take the next unperformed test and use the necessary tools to perform it.
+If all tests are successfully performed, write a summary in which you note all the correctly working functionality and all the errors you found.
